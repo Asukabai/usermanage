@@ -43,4 +43,9 @@ public class UserService {
         Pageable pageRequest = PageRequest.of(pageNum - 1, pageSize, sort);
         return userRepository.findByNameLike(name, pageRequest);
     }
+
+    public UserService findByOriginalFilename(String originalFilename) {
+
+        return null;
+    }
 }

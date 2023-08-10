@@ -8,6 +8,7 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    private String avatar;
     private String name;
     private Integer age;
     private String sex;
@@ -15,6 +16,14 @@ public class User {
     private String phone;
     @Column(name = "create_time")
     private String createTime;
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
 
     public Long getId() {
         return id;

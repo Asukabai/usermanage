@@ -9,15 +9,20 @@
 <body>
 <!--在body标签中，我们有一个id为"app"的div容器，用于挂载Vue实例。页面上显示了一个标题"用户信息表"、一个新增按钮和一个文本输入框。-->
 <div id="app" style="width: 80%; margin: 0 auto">
-    <h2>用户信息表</h2>
+    <h2>员工信息表</h2>
 <!--接下来是一个el-row标签，在Element UI中，它代表一行布局。里面有一个el-col标签，表示一列布局，通过:span属性设置了它的宽度为6列，并且设置了一些内边距样式。-->
-    <el-row>
+    <el-row >
 <!--el-col标签里面有一个el-button（Element UI中的按钮组件），它是一个用于新增用户的按钮，通过@click属性绑定了点击事件add。
 还有一个el-input（Element UI中的输入框组件），通过v-model指令将输入框的值与Vue实例中的name属性进行双向绑定，当用户输入时，
 它会自动同步到name属性中。@keyup.enter.native是一个键盘事件，当用户在输入框中按下回车键时，会触发loadTable(1)方法来加载表格数据。-->
-        <el-col :span="6" style="margin-bottom: 10px">
+        <el-col :span="2" style="margin-bottom: 10px">
             <el-button type="primary" @click="add">新增</el-button>
-            <el-input v-model="name" style="width: 70%" @keyup.enter.native="loadTable(1)"></el-input>
+        </el-col>
+        <el-col :span="2" style="margin-bottom: 10px">
+            <el-button type="primary" @click="search" >查询</el-button>
+        </el-col>
+        <el-col :span="6" style="margin-bottom: 10px">
+            <el-input v-model="name" placeholder="请输入员工姓名" style="width: 70%"></el-input>
         </el-col>
     </el-row>
 <!--接下来是el-table标签，它是一个表格组件，通过:data属性绑定了数据源page.content，即从服务器获取的用户信息数据。
@@ -30,8 +35,16 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
 <!--再往下就是el-table-column标签，定义了表格中的列。prop属性指定了数据对象中对应的字段名，label属性指定了列的显示名称。这段代码只显示了一个列，其他列省略了。-->
         <el-table-column
                 prop="name"
-                label="用户名"
-        >
+                label="用户名">
+        </el-table-column>
+        <!-- 新增头像图片列 -->
+        <el-table-column
+                prop="avatar"
+                label="头像">
+            <!-- 在slot-scope内部可以自定义展示列的内容，这里使用了el-image组件来展示头像图片 -->
+            <template slot-scope="scope">
+                <el-image :src="scope.row.avatar" style="width: 60px; height: 60px;"></el-image>
+            </template>
         </el-table-column>
         <el-table-column
                 prop="age"
@@ -75,12 +88,22 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
 <!--el-dialog标签内部是一个el-form（Element UI中的表单组件），通过ref属性指定了引用名称为"form"。通过:model属性将表单数据与Vue实例中的form属性进行双向绑定，label-width属性设置了表单项的标签宽度。-->
 <!--在el-form标签内部，有一个el-form-item（Element UI中的表单项组件），定义了一个"用户名"的label和一个el-input组件，通过v-model指令将输入框的值与Vue实例中的form.name属性进行双向绑定，实现了用户名输入框与表单数据的同步。-->
     <el-dialog
-            title="用户信息"
+            title="修改用户信息"
             :visible.sync="dialogVisible"
             width="30%">
         <el-form ref="form" :model="form" label-width="80px">
             <el-form-item label="用户名">
                 <el-input v-model="form.name"></el-input>
+            </el-form-item>
+            <el-form-item label="头像">
+                <el-upload action="/upload"
+                :auto-upload="false"
+                name="avatar"
+                :show-file-list="false"
+                :on-change="handleAvatarChange" >
+                <el-button slot="trigger" size="small">选择图片(不能大于2M)</el-button>
+                <el-button style="margin-left: 10px" @click="uploadAvatar" size="small">上传</el-button>
+                </el-upload>
             </el-form-item>
             <el-form-item label="年龄">
                 <el-input v-model="form.age"></el-input>
@@ -116,9 +139,15 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
             page: {},
             name: '',
             pageNum: 1,// pageNum表示当前页码，默认为1。
-            pageSize: 8, // pageSize表示每页显示的数据条数，默认为8。
+            pageSize: 5, // pageSize表示每页显示的数据条数，默认为5。
             dialogVisible: false,// dialogVisible控制弹窗的显示与隐藏，默认为false（隐藏）
-            form: {} // form是用于编辑用户信息的表单数据对象，默认为空对象。
+            form: {
+                avatar: ''
+            },// form是用于编辑用户信息的表单数据对象，默认为空对象。
+            file: null,// 属性file是用于保存上传的文件对象
+            message: {
+                duration: 500 // 持续时间为0.5秒
+            }
         },
         created() { // created方法是Vue实例的生命周期钩子，在实例创建后立即执行。在这个钩子中调用了loadTable方法，将pageNum作为参数传入，加载表格数据。
             this.loadTable(this.pageNum);
@@ -132,6 +161,31 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
                 this.pageNum = num;
                 $.get("/user/page?pageNum=" + this.pageNum + "&pageSize=" + this.pageSize + "&name=" + this.name).then(res => {
                     this.page = res.data;
+                });
+            },
+            // 定义了handleAvatarChange方法来获取用户选择的文件并显示预览，然后在uploadAvatar方法中将文件通过Ajax方式上传到服务器。
+            handleAvatarChange(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.form.avatar = URL.createObjectURL(file);
+                    this.file = file; // 将文件对象存储在Vue实例的file字段中
+                }
+            },
+            uploadAvatar() {
+                const formData = new FormData();
+                formData.append('avatar', this.file);
+                $.ajax({
+                    url: '/user/upload', // 修改为正确的上传地址
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: response => {
+                        this.form.avatar = response.url;
+                    },
+                    error: error => {
+                        this.$message.error('上传头像失败！' + error.message);// 修改错误处理方法为$message.error
+                    }
                 });
             },
             add() {
@@ -154,6 +208,7 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
                     }).then(res => {
                         this.dialogVisible = false;
                         this.loadTable(1);
+                        this.$message.success('修改成功！');
                     })
                 } else {
                     // 新增
@@ -165,6 +220,7 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
                     }).then(res => {
                         this.dialogVisible = false;
                         this.loadTable(1);
+                        this.$message.success('新增成功！');
                     })
                 }
             },
@@ -175,7 +231,11 @@ stripe和border属性分别给表格添加了斑马纹和边框样式。通过st
                     contentType: 'application/json'
                 }).then(res => {
                     this.loadTable(1);
+                    this.$message.success('删除成功！');
                 })
+            },
+            search() {
+                this.loadTable(1);
             }
         }
     })
