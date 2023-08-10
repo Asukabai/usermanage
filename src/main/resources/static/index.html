@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>用户信息</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="element.css">
+</head>
+<body>
+<!--在body标签中，我们有一个id为"app"的div容器，用于挂载Vue实例。页面上显示了一个标题"用户信息表"、一个新增按钮和一个文本输入框。-->
+<div id="app" style="width: 80%; margin: 0 auto">
+    <h2>用户信息表</h2>
+<!--接下来是一个el-row标签，在Element UI中，它代表一行布局。里面有一个el-col标签，表示一列布局，通过:span属性设置了它的宽度为6列，并且设置了一些内边距样式。-->
+    <el-row>
+<!--el-col标签里面有一个el-button（Element UI中的按钮组件），它是一个用于新增用户的按钮，通过@click属性绑定了点击事件add。
+还有一个el-input（Element UI中的输入框组件），通过v-model指令将输入框的值与Vue实例中的name属性进行双向绑定，当用户输入时，
+它会自动同步到name属性中。@keyup.enter.native是一个键盘事件，当用户在输入框中按下回车键时，会触发loadTable(1)方法来加载表格数据。-->
+        <el-col :span="6" style="margin-bottom: 10px">
+            <el-button type="primary" @click="add">新增</el-button>
+            <el-input v-model="name" style="width: 70%" @keyup.enter.native="loadTable(1)"></el-input>
+        </el-col>
+    </el-row>
+<!--接下来是el-table标签，它是一个表格组件，通过:data属性绑定了数据源page.content，即从服务器获取的用户信息数据。
+stripe和border属性分别给表格添加了斑马纹和边框样式。通过style属性设置表格宽度为100%。-->
+    <el-table
+            :data="page.content"
+            stripe
+            border
+            style="width: 100%">
+<!--再往下就是el-table-column标签，定义了表格中的列。prop属性指定了数据对象中对应的字段名，label属性指定了列的显示名称。这段代码只显示了一个列，其他列省略了。-->
+        <el-table-column
+                prop="name"
+                label="用户名"
+        >
+        </el-table-column>
+        <el-table-column
+                prop="age"
+                label="年龄"
+                width="180">
+        </el-table-column>
+        <el-table-column
+                prop="sex"
+                label="性别">
+        </el-table-column>
+        <el-table-column
+                prop="address"
+                label="地址">
+        </el-table-column>
+        <el-table-column
+                prop="phone"
+                label="电话">
+        </el-table-column>
+        <el-table-column
+                fixed="right"
+                label="操作"
+                width="100">
+            <template slot-scope="scope">
+                <el-button type="primary" icon="el-icon-edit" size="small" circle @click="edit(scope.row)"></el-button>
+                <el-button type="danger" icon="el-icon-delete" size="small" circle @click="del(scope.row.id)"></el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+    <el-row type="flex" justify="center" style="margin-top: 10px">
+        <el-pagination
+                layout="prev, pager, next"
+                :page-size="pageSize"
+                :current-page="pageNum"
+                @prev-click="loadTable"
+                @current-change="loadTable"
+                @next-click="loadTable"
+                :total="page.totalElements">
+        </el-pagination>
+    </el-row>
+<!--el-dialog标签通过:visible.sync属性，将其可见性与Vue实例中的dialogVisible属性进行双向绑定。当dialogVisible的值为true时，弹窗显示；为false时，弹窗隐藏。width属性设置弹窗的宽度为30%。-->
+<!--el-dialog标签内部是一个el-form（Element UI中的表单组件），通过ref属性指定了引用名称为"form"。通过:model属性将表单数据与Vue实例中的form属性进行双向绑定，label-width属性设置了表单项的标签宽度。-->
+<!--在el-form标签内部，有一个el-form-item（Element UI中的表单项组件），定义了一个"用户名"的label和一个el-input组件，通过v-model指令将输入框的值与Vue实例中的form.name属性进行双向绑定，实现了用户名输入框与表单数据的同步。-->
+    <el-dialog
+            title="用户信息"
+            :visible.sync="dialogVisible"
+            width="30%">
+        <el-form ref="form" :model="form" label-width="80px">
+            <el-form-item label="用户名">
+                <el-input v-model="form.name"></el-input>
+            </el-form-item>
+            <el-form-item label="年龄">
+                <el-input v-model="form.age"></el-input>
+            </el-form-item>
+            <el-form-item label="性别">
+                <el-radio v-model="form.sex" label="男">男</el-radio>
+                <el-radio v-model="form.sex" label="女">女</el-radio>
+            </el-form-item>
+            <el-form-item label="地址">
+                <el-input v-model="form.address"></el-input>
+            </el-form-item>
+            <el-form-item label="电话">
+                <el-input v-model="form.phone"></el-input>
+            </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="dialogVisible = false">取 消</el-button>
+            <el-button type="primary" @click="save">确 定</el-button>
+        </span>
+    </el-dialog>
+
+</div>
+
+<script src="jquery.min.js"></script>
+<script src="vue.js"></script>
+<!-- 引入组件库 -->
+<script src="element.js"></script>
+<!--这部分代码定义了一个Vue实例，并进行了一些配置-->
+<script>
+    new Vue({
+        el: '#app',// 在el属性中指定了Vue实例要挂载的元素id为"app"，即前面提到的div容器。
+        data: { // data属性是一个对象，存储了Vue实例的数据。page用于存储从服务器获取到的用户信息数据，初始值为空对象。name是用于搜索用户名称的字段，默认为空字符串。
+            page: {},
+            name: '',
+            pageNum: 1,// pageNum表示当前页码，默认为1。
+            pageSize: 8, // pageSize表示每页显示的数据条数，默认为8。
+            dialogVisible: false,// dialogVisible控制弹窗的显示与隐藏，默认为false（隐藏）
+            form: {} // form是用于编辑用户信息的表单数据对象，默认为空对象。
+        },
+        created() { // created方法是Vue实例的生命周期钩子，在实例创建后立即执行。在这个钩子中调用了loadTable方法，将pageNum作为参数传入，加载表格数据。
+            this.loadTable(this.pageNum);
+        },
+        // methods属性是一个对象，定义了Vue实例的方法。loadTable方法用于从服务器加载用户信息数据。它接受一个参数num，将传入的num赋值给pageNum，
+        // 然后通过jQuery的$.get方法发送GET请求到指定的URL，携带了pageNum、pageSize和name作为查询参数.
+        // 当请求成功时，将返回的数据赋值给page对象。还定义了其他方法，如add（弹出新增用户的弹窗）、edit（在弹窗中编辑选中的用户信息）、save（保存用户信息的方法，
+        // 根据form对象中是否有id属性来判断是新增还是编辑操作）、del（删除用户信息的方法）等。
+        methods: {
+            loadTable(num) {
+                this.pageNum = num;
+                $.get("/user/page?pageNum=" + this.pageNum + "&pageSize=" + this.pageSize + "&name=" + this.name).then(res => {
+                    this.page = res.data;
+                });
+            },
+            add() {
+                this.dialogVisible = true;
+                this.form = {};
+            },
+            edit(row) {
+                this.form = row;
+                this.dialogVisible = true;
+            },
+            save() {
+                let data = JSON.stringify(this.form);
+                if (this.form.id) {
+                    // 编辑
+                    $.ajax({
+                        url: '/user',
+                        type: 'put',
+                        contentType: 'application/json',
+                        data: data
+                    }).then(res => {
+                        this.dialogVisible = false;
+                        this.loadTable(1);
+                    })
+                } else {
+                    // 新增
+                    $.ajax({
+                        url: '/user',
+                        type: 'post',
+                        contentType: 'application/json',
+                        data: data
+                    }).then(res => {
+                        this.dialogVisible = false;
+                        this.loadTable(1);
+                    })
+                }
+            },
+            del(id) {
+                $.ajax({
+                    url: '/user/' + id,
+                    type: 'delete',
+                    contentType: 'application/json'
+                }).then(res => {
+                    this.loadTable(1);
+                })
+            }
+        }
+    })
+</script>
+</body>
+</html>
